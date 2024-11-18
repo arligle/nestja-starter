@@ -5,6 +5,11 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "packageManager": "pnpm@9.3.0",
+  "volta": {
+    "node": "20.16.0",
+    "pnpm": "9.3.0"
+  },
   "scripts": {
     "build": "nest build",
     "build:all": "node scripts/build.mjs --sourceMaps=false --prismaClients=true",
@@ -28,7 +33,13 @@
     "typeorm:drop": "npm run typeorm schema:drop",
     "prisma:db:push": "prisma db push",
     "prisma:db:reset": "prisma migrate reset",
-    "prisma:db:deploy": "prisma migrate deploy"
+    "prisma:db:deploy": "prisma migrate deploy",
+    "prepare": "husky install"
+  },
+    "config": {
+    "commitizen": {
+      "path": "node_modules/cz-customizable"
+    }
   },
   "dependencies": {
     "@casl/ability": "^6.7.1",
@@ -80,6 +91,9 @@
     "winston-mongodb": "^5.1.1"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
+    "@commitlint/config-nx-scopes": "^19.5.0",
     "@nestjs/cli": "^10.3.2",
     "@nestjs/schematics": "^10.1.1",
     "@nestjs/testing": "^10.3.9",
@@ -101,7 +115,9 @@
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^7.13.0",
     "@typescript-eslint/parser": "^7.13.0",
+    "commitizen": "^4.3.1",
     "cross-env": "^7.0.3",
+    "cz-customizable": "^7.2.1",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
@@ -118,7 +134,8 @@
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "husky": "^8.0.0"
   },
   "jest": {
     "moduleFileExtensions": [

@@ -422,7 +422,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/toimc/Downloads/大前端2.0/课件/nestjs-starter/prisma/clients/mysql",
+      "value": "/home/arligle/aiofc-1119/nestjs-starter/prisma/clients/mysql",
       "fromEnvVar": null
     },
     "config": {
@@ -431,7 +431,7 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "darwin-arm64",
+        "value": "debian-openssl-3.0.x",
         "native": true
       }
     ],
@@ -449,7 +449,7 @@ const config = {
     "db"
   ],
   "activeProvider": "mysql",
-  "postinstall": false,
+  "postinstall": true,
   "inlineDatasources": {
     "db": {
       "url": {
