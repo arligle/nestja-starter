@@ -1,0 +1,17 @@
+ARG NODE_VERSION=18
+
+FROM node:${NODE_VERSION}-alpine
+
+LABEL maintainer="brian <admin@wayearn.com>"
+
+RUN apk add --no-cache wget && \
+  wget -qO /bin/pnpm "https://github.com/pnpm/pnpm/releases/latest/download/pnpm-linuxstatic-arm64" && \
+  chmod +x /bin/pnpm
+
+# 配置 pnpm 存储和全局位置
+ENV PNPM_HOME=/usr/local/share/pnpm
+ENV PNPM_STORE=/usr/local/share/pnpm-store
+ENV PATH=$PATH:$PNPM_HOME
+
+# 清理安装文件，尽管这些在 wget 下载后并不存在持久化存储问题
+RUN rm -rf /var/cache/apk/* /tmp/*

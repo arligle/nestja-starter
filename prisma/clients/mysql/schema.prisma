@@ -1,0 +1,506 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./clients/mysql"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int             @id @default(autoincrement())
+  username      String          @unique
+  password      String
+  UserRole      UserRole[]
+  Attachment    Attachment[]
+  Course        Course[]
+  CourseContent CourseContent[]
+  Comment       Comment[]
+  Transaction   Transaction[]
+  AuditRecord   AuditRecord[]
+  BalanceRecord BalanceRecord[]
+  Note          Note[]
+
+  @@map("users")
+}
+
+model Role {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+
+  users           UserRole[]
+  RolePermissions RolePermissions[]
+  RolePolicy      RolePolicy[]
+  RoleMenu        RoleMenu[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId Int
+  roleId Int
+  Role   Role @relation(fields: [roleId], references: [id])
+  user   User @relation(fields: [userId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Permission {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique // ControllerName + RouteName -> user:create 
+  action      String // action: READ, CREATE, UPDATE, DELETE, MANAGE
+  description String?
+
+  RolePermissions  RolePermissions[]
+  PermissionPolicy PermissionPolicy[]
+
+  @@map("permissions")
+}
+
+model RolePermissions {
+  roleId       Int
+  permissionId Int
+  Role         Role       @relation(fields: [roleId], references: [id])
+  Permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Policy {
+  id         Int    @id @default(autoincrement())
+  type       Int //类型标识，0-json,1-mongo,2-function
+  effect     String // 'can' | 'cannot'
+  action     String // CURD + manage
+  subject    String // Class
+  fields     Json? // 字段列表, {type, data}
+  conditions Json?
+  args       Json?
+
+  // base64编码字段
+  encode String @unique
+
+  RolePolicy       RolePolicy[]
+  PermissionPolicy PermissionPolicy[]
+
+  @@map("policy")
+}
+
+// Role -> Policy 角色所拥有的策略权限
+model RolePolicy {
+  roleId   Int
+  policyId Int
+  Role     Role   @relation(fields: [roleId], references: [id])
+  Policy   Policy @relation(fields: [policyId], references: [id])
+
+  @@id([roleId, policyId])
+  @@map("role_policies")
+}
+
+// Permission -> Policy 路由级别所需要的策略权限
+model PermissionPolicy {
+  permissionId Int
+  policyId     Int
+
+  Permission Permission @relation(fields: [permissionId], references: [id])
+  Policy     Policy     @relation(fields: [policyId], references: [id])
+
+  @@id([permissionId, policyId])
+  @@map("permission_polices")
+}
+
+model Menu {
+  id        Int     @id @default(autoincrement())
+  name      String? @unique
+  path      String
+  component String?
+  redirect  String?
+  fullPath  String?
+  alias     String?
+  label     String?
+
+  // self-relation
+  parentId Int?
+  parent   Menu?  @relation("menu_relation", fields: [parentId], references: [id])
+  children Menu[] @relation("menu_relation")
+
+  Meta     Meta?
+  RoleMenu RoleMenu[]
+
+  @@map("menus")
+}
+
+model Meta {
+  id       Int     @id @default(autoincrement())
+  title    String?
+  layout   String?
+  order    Int?    @default(100)
+  icon     String?
+  hideMenu Boolean @default(false)
+  disabled Boolean @default(false)
+
+  menuId Int  @unique
+  Menu   Menu @relation(fields: [menuId], references: [id])
+
+  @@map("menu_meta")
+}
+
+model RoleMenu {
+  roleId Int
+  menuId Int
+
+  Role Role @relation(fields: [roleId], references: [id])
+  Menu Menu @relation(fields: [menuId], references: [id])
+
+  @@id([roleId, menuId])
+  @@map("role_menus")
+}
+
+model DictAttachmentAttribute {
+  id   Int     @id @default(autoincrement())
+  type String // 资源分类
+  name String // 属性名
+  desc String? // 属性补充描述 
+
+  AttachmentAttribute AttachmentAttribute[]
+
+  @@unique([type, name])
+  @@map("dict_attachment_attributes")
+}
+
+model AttachmentAttribute {
+  attachmentId Int // 对应attachments表
+  attributeId  Int // 对应dict_attachment_attributes表
+  value        String // 对应该attribute_id值
+  desc         String? // 补充描述
+
+  Attachment    Attachment              @relation(fields: [attachmentId], references: [id])
+  DictAttribute DictAttachmentAttribute @relation(fields: [attributeId], references: [id])
+
+  @@id([attachmentId, attributeId])
+  @@map("attachment_attributes")
+}
+
+model Attachment {
+  id        Int       @id @default(autoincrement())
+  type      String // 分类，text-图文，image-图片，audio-音频，video-视频
+  location  String // 存储路径   user1-> date目录 -> 文件名.hash.文件后缀
+  name      String? // 资源名称
+  ossType   String? // oss类型
+  userId    Int // 作者id，对应users表
+  status    Int       @default(0) // 是否禁用，0-未禁用，1-已禁用、已删除
+  desc      String? // 补充描述
+  createdAt DateTime? @default(now()) // 创建时间
+
+  User User @relation(fields: [userId], references: [id])
+
+  AttachmentAttribute AttachmentAttribute[]
+  Course              Course[]
+  ContentAttachment   ContentAttachment[]
+
+  @@map("attachments")
+}
+
+model Course {
+  id          Int     @id @default(autoincrement())
+  title       String // 标题
+  subTitle    String? // 子标题
+  desc        String? // 描述信息
+  coverId     Int? // 课程封面id
+  authorId    Int // 作者id
+  originPrice Float? // 初始价格
+  price       Float? // 现售价格
+  status      Int     @default(0) // 是否上架
+  counts      Int     @default(0) // 购买计数初始数
+  order       Int     @default(1000) // 排序
+  detail      String? // 关联markdown详情页
+  type        String? // 分类
+
+  Cover         Attachment?     @relation(fields: [coverId], references: [id])
+  Author        User            @relation(fields: [authorId], references: [id])
+  Contents      CourseContent[]
+  Tags          CourseTag[]
+  CourseComment CourseComment[]
+  Transaction   Transaction[]
+
+  @@map("courses")
+}
+
+model CourseContent {
+  id       Int     @id @default(autoincrement())
+  courseId Int // 对应courses表
+  title    String // 标题
+  type     String? // 类型
+  order    Int     @default(1000) // 排序
+  pid      Int? // 上级内容id
+  status   Int     @default(0) // 是否开放
+  authorId Int // 作者id
+
+  Course         Course              @relation(fields: [courseId], references: [id])
+  Author         User                @relation(fields: [authorId], references: [id])
+  Attachments    ContentAttachment[]
+  Tags           ContentTag[]
+  ContentComment ContentComment[]
+
+  @@map("course_contents")
+}
+
+model ContentAttachment {
+  // 对应courses_contents表
+  contentId    Int
+  // 对应attachments表
+  attachmentId Int
+
+  Content    CourseContent @relation(fields: [contentId], references: [id])
+  Attachment Attachment    @relation(fields: [attachmentId], references: [id])
+
+  @@id([contentId, attachmentId])
+  @@map("content_attachments")
+}
+
+model DictCourseTag {
+  id     Int    @id @default(autoincrement())
+  name   String // 标签名，比如：Vue,React
+  typeId Int? // 分类，对应dict_course_types，比如：前端、后端、服务端
+  order  Int    @default(1000) // 排序
+  status Int    @default(0) // 是否禁用，0-未禁用，1-已禁用
+
+  CourseType DictCourseType? @relation(fields: [typeId], references: [id])
+  CourseTags CourseTag[]
+  ContentTag ContentTag[]
+
+  @@unique([name, typeId])
+  @@map("dict_course_tag")
+}
+
+model DictCourseType {
+  id     Int    @id @default(autoincrement())
+  name   String @unique // 分类名
+  order  Int    @default(100) // 排序
+  status Int    @default(0) // 是否禁用，0-未禁用，1-已禁用
+
+  CourseTags DictCourseTag[]
+
+  @@map("dict_course_type")
+}
+
+model CourseTag {
+  courseId Int // 对应courses表
+  tagId    Int // 对应dict_tags表
+
+  Course Course        @relation(fields: [courseId], references: [id])
+  Tag    DictCourseTag @relation(fields: [tagId], references: [id])
+
+  @@id([courseId, tagId])
+  @@map("course_tags")
+}
+
+model ContentTag {
+  contentId Int // 对应courses表
+  tagId     Int // 对应dict_tags表
+
+  Content CourseContent @relation(fields: [contentId], references: [id])
+  Tag     DictCourseTag @relation(fields: [tagId], references: [id])
+
+  @@id([contentId, tagId])
+  @@map("course_content_tags")
+}
+
+model Comment {
+  id      Int      @id @default(autoincrement())
+  // 上一级评论
+  pid     Int?
+  userId  Int
+  content String
+  created DateTime @default(now())
+  // 点赞数量
+  hands   BigInt   @default(0)
+  // 是否显示，0-否，1-是
+  status  Int      @default(1)
+  // 是否采纳为最佳，0-否，1-是
+  isBest  Int      @default(0)
+
+  User User @relation(fields: [userId], references: [id])
+
+  parent         Comment?         @relation("comment_relation", fields: [pid], references: [id])
+  children       Comment[]        @relation("comment_relation")
+  CourseComment  CourseComment[]
+  ContentComment ContentComment[]
+
+  @@map("comments")
+}
+
+model CourseComment {
+  courseId  Int
+  commentId Int
+
+  Course  Course  @relation(fields: [courseId], references: [id])
+  Comment Comment @relation(fields: [commentId], references: [id])
+
+  @@id([courseId, commentId])
+  @@map("course_comments")
+}
+
+model ContentComment {
+  contentId Int
+  commentId Int
+
+  Content CourseContent @relation(fields: [contentId], references: [id])
+  Comment Comment       @relation(fields: [commentId], references: [id])
+
+  @@id([commentId, contentId])
+  @@map("content_comments")
+}
+
+model Note {
+  id     Int @id @default(autoincrement())
+  userId Int
+
+  content   String
+  createdAt DateTime  @default(now()) // 创建时间
+  updatedAt DateTime? @updatedAt // 更新时间
+  status    Int?      @default(1) //  0-隐藏，1-展示
+
+  User User @relation(fields: [userId], references: [id])
+
+  @@map("notes")
+}
+
+// 交易平台
+model DictPlatform {
+  id   Int     @id @default(autoincrement())
+  name String
+  url  String?
+  desc String?
+
+  Transaction Transaction[]
+
+  @@map("dict_platforms")
+}
+
+model Transaction {
+  id         Int   @id @default(autoincrement())
+  // 与 Course 表关联
+  courseId   Int
+  // 与 User 表关联
+  userId     Int
+  // 交易金额
+  amount     Float
+  // 交易平台，如支付宝、微信、PayPal等
+  platformId Int
+  // 交易状态 0-默认，等待处理 1-交易成功，2-交易失败 3-已退款 4-退款中 5-交易关闭 
+  status     Int   @default(0)
+
+  createdAt DateTime  @default(now()) // 创建时间
+  updatedAt DateTime? @updatedAt // 更新时间
+
+  Course Course @relation(fields: [courseId], references: [id])
+  User   User   @relation(fields: [userId], references: [id])
+
+  Platform         DictPlatform       @relation(fields: [platformId], references: [id])
+  GroupTransaction GroupTransaction[]
+  BalanceRecord    BalanceRecord[]
+
+  @@map("transactions")
+}
+
+// 付款组
+model GroupTransaction {
+  id            Int    @id @default(autoincrement())
+  groupId       String
+  transactionId Int
+
+  Transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+// 审核流程定义
+model AuditFlow {
+  id          Int     @id @default(autoincrement())
+  name        String // 审核的名称，例如"提现", "课程发布"
+  description String? // 流程描述
+
+  AuditStage AuditStage[]
+
+  @@map("audit_flows")
+}
+
+model AuditStage {
+  id     Int    @id @default(autoincrement())
+  flowId Int // 所属流程
+  name   String // 阶段名称，如"初审", "复审"
+  level  Int // 审核等级
+  pid    Int? // 上一个阶段ID，用于定义流程的顺序
+
+  Flow AuditFlow @relation(fields: [flowId], references: [id])
+
+  parent      AuditStage?   @relation("audit_relation", fields: [pid], references: [id])
+  children    AuditStage[]  @relation("audit_relation")
+  AuditRecord AuditRecord[]
+
+  @@map("audit_stages")
+}
+
+model AuditRecord {
+  id         Int      @id @default(autoincrement())
+  entityId   Int // 审核实体的ID
+  entityType String // 审核实体的类型
+  stageId    Int // 当前审核阶段
+  status     String? // 审核状态
+  reviewerId Int // 审核人ID
+  createdAt  DateTime @default(now()) // 审核时间
+  notes      String? // 审核备注
+
+  Stage    AuditStage @relation(fields: [stageId], references: [id])
+  Reviewer User       @relation(fields: [reviewerId], references: [id])
+
+  @@map("audit_records")
+}
+
+model DictCouponType {
+  id     Int      @id @default(autoincrement())
+  name   String
+  desc   String?
+  Coupon Coupon[]
+
+  @@map("dict_coupon_type")
+}
+
+// 红包卡券
+model Coupon {
+  id         Int      @id @default(autoincrement())
+  productId  Int?
+  typeId     Int
+  threshold  Float? // 使用门槛
+  discount   Float // 折扣金额或折扣百分比
+  validUntil DateTime // 到期时间
+  universal  Boolean  @default(false) // 是否为通用券
+
+  CouponType DictCouponType @relation(fields: [typeId], references: [id])
+
+  @@map("coupons")
+}
+
+// 收支记录
+
+model BalanceRecord {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  transactionId Int?
+  amount        Float
+  type          Int      @default(0) // 收入或支出 1-收入，2-支出 0-其他
+  createdAt     DateTime @default(now())
+
+  User        User         @relation(fields: [userId], references: [id])
+  Transaction Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@map("balance_records")
+}

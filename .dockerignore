@@ -1,0 +1,13 @@
+.github
+.DS_Store
+node_modules/
+.git
+.gitignore
+README.md
+dist/
+prisma/clients/
+.vscode/
+
+
+# OS
+.DS_Store

@@ -1,0 +1,13 @@
+services:
+  nest-app:
+    container_name: 'nestapp'
+    image: 'nest-starter:1.7'
+    restart: 'always'
+    ports:
+      - 10090:3000
+    # method 1
+    # env_file:
+    #   - .env
+    # method 2
+    volumes:
+      - ./.env:/app/.env
